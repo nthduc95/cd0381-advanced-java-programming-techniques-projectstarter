@@ -3,6 +3,9 @@ package com.udacity.webcrawler.profiler;
 import javax.inject.Inject;
 import java.io.IOException;
 import java.io.Writer;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.ZonedDateTime;
@@ -32,14 +35,29 @@ final class ProfilerImpl implements Profiler {
     // TODO: Use a dynamic proxy (java.lang.reflect.Proxy) to "wrap" the delegate in a
     //       ProfilingMethodInterceptor and return a dynamic proxy from this method.
     //       See https://docs.oracle.com/javase/10/docs/api/java/lang/reflect/Proxy.html.
+    Method[] methods = klass.getMethods();
 
-    return delegate;
+    if (methods.length == 0) {
+      throw new IllegalArgumentException(klass.getName() + " has no methods.");
+    }
+
+    ProfilingMethodInterceptor profilingMethodInterceptor = new ProfilingMethodInterceptor(clock, state, delegate);
+
+    return (T) Proxy.newProxyInstance(ProfilerImpl.class.getClassLoader(), new Class[]{klass}, profilingMethodInterceptor);
   }
 
   @Override
-  public void writeData(Path path) {
+  public void writeData(Path path) throws IOException {
     // TODO: Write the ProfilingState data to the given file path. If a file already exists at that
     //       path, the new data should be appended to the existing file.
+    Objects.requireNonNull(path);
+
+    try (Writer writer = Files.newBufferedWriter(path)) {
+      writeData(writer);
+      writer.flush();
+    } catch (IOException ex) {
+      throw new IOException("Failed to write data to path: " + path, ex);
+    }
   }
 
   @Override
