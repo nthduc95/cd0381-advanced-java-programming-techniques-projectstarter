@@ -25,6 +25,7 @@ public final class WebCrawlerTest {
 
   static Stream<Class<?>> provideTestParameters() throws Exception {
     String[] names = System.getProperty("crawlerImplementations").split("\\s+");
+
     List<Class<?>> classes = new ArrayList<>();
     for (String name : names) {
       classes.add(Class.forName(name.strip()));
