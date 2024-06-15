@@ -5,6 +5,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.regex.Pattern;
 import java.time.Clock;
+import java.util.stream.Collectors;
 
 import com.udacity.webcrawler.parser.PageParser;
 import com.udacity.webcrawler.parser.PageParserFactory;
@@ -44,28 +45,23 @@ public class DataCrawler extends RecursiveTask<Boolean> {
     @Override
     protected Boolean compute() {
         if (shouldStopCrawling()) {
-            return (Boolean) false;
+            return false;
         }
 
-        visitedUrls.add(url);
-        PageParser.Result result = parsePage();
+        if (!visitedUrls.add(url)) {
+            return false;
+        }
+
+        final PageParser.Result result = parsePage();
 
         updateWordCounts(result);
         crawlLinks(result);
 
-        return (Boolean) true;
+        return true;
     }
 
     private boolean shouldStopCrawling() {
-        if (maxDepth == 0 || clock.instant().isAfter(deadline)) {
-            return true;
-        }
-
-        if (isUrlIgnored() || visitedUrls.contains(url)) {
-            return true;
-        }
-
-        return false;
+        return maxDepth == 0 || clock.instant().isAfter(deadline) || isUrlIgnored();
     }
 
     private boolean isUrlIgnored() {
@@ -77,17 +73,16 @@ public class DataCrawler extends RecursiveTask<Boolean> {
     }
 
     private void updateWordCounts(PageParser.Result result) {
-        for (ConcurrentMap.Entry<String, Integer> e : result.getWordCounts().entrySet()) {
-            counts.compute(e.getKey(), (k, v) -> (v == null) ? e.getValue() : (Integer) (e.getValue() + v));
+        for (var entry : result.getWordCounts().entrySet()) {
+            counts.merge(entry.getKey(), entry.getValue(), Integer::sum);
         }
     }
 
     private void crawlLinks(PageParser.Result result) {
-        List<DataCrawler> subtasks = new ArrayList<>();
-        for (String link : result.getLinks()) {
-            subtasks.add(new DataCrawler(link, maxDepth - 1, deadline, counts, visitedUrls, ignoredUrls, clock,
-                    parserFactory));
-        }
+        List<DataCrawler> subtasks = result.getLinks().stream()
+                .map(link -> new DataCrawler(link, maxDepth - 1, deadline, counts, visitedUrls, ignoredUrls, clock,
+                        parserFactory))
+                .collect(Collectors.toList());
         invokeAll(subtasks);
     }
 }
