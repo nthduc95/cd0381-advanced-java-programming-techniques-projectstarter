@@ -55,7 +55,7 @@ public final class WebCrawlerMain {
             Files.newBufferedWriter(profilePath);
     profiler.writeData(profileFileWriter);
 
-    if (!config.getResultPath().isEmpty() || !config.getProfileOutputPath().isEmpty()) {
+    if (config.getResultPath().isEmpty() || config.getProfileOutputPath().isEmpty()) {
         resultFileWriter.flush();
         profileFileWriter.flush();
     }
